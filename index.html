@@ -1,26 +1,367 @@
+
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>keyword-sheet-magic</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Spreadsheet with Keyword Highlighting</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Handsontable CSS and JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.js"></script>
+    
+    <style>
+        .highlighted-cell {
+            background-color: #fef08a !important;
+            font-weight: bold;
+        }
+        
+        .keyword-tag {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 2px;
+            display: inline-block;
+        }
+        
+        #spreadsheet-container {
+            height: 500px;
+            width: 100%;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Advanced Data Explorer</h1>
+            <p class="text-gray-600">Search, edit, and analyze your data with real-time keyword highlighting</p>
+        </div>
+        
+        <!-- Controls Section -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Keyword Input -->
+                <div>
+                    <label for="keywordInput" class="block text-sm font-medium text-gray-700 mb-2">
+                        Search Keywords
+                    </label>
+                    <input 
+                        type="text" 
+                        id="keywordInput" 
+                        placeholder="Enter keywords separated by commas (e.g., Bank of San Francisco, LeverX, Teneo)"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    >
+                    <div id="keywordTags" class="mt-2 min-h-[24px]"></div>
+                </div>
+                
+                <!-- CSV Import -->
+                <div>
+                    <label for="csvFile" class="block text-sm font-medium text-gray-700 mb-2">
+                        Import CSV Data
+                    </label>
+                    <input 
+                        type="file" 
+                        id="csvFile" 
+                        accept=".csv"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all duration-200"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">Upload CSV with columns: Name, Industry, Location</p>
+                </div>
+            </div>
+            
+            <!-- Statistics -->
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                    <span>Total Rows: <span id="totalRows" class="font-semibold text-blue-600">1000</span></span>
+                    <span>Highlighted Cells: <span id="highlightedCount" class="font-semibold text-yellow-600">0</span></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Spreadsheet Container -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="mb-4">
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">Data Grid</h2>
+                <p class="text-sm text-gray-600">Right-click for context menu options. Double-click cells to edit.</p>
+            </div>
+            <div id="spreadsheet-container" class="border border-gray-200 rounded-lg overflow-hidden"></div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-8 text-center text-gray-500 text-sm">
+            <p>Built with Handsontable & Tailwind CSS • Real-time keyword highlighting</p>
+        </div>
+    </div>
 
-    <meta property="og:title" content="keyword-sheet-magic" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
-
-  <body>
-    <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <script>
+        class SpreadsheetApp {
+            constructor() {
+                this.hot = null;
+                this.keywords = [];
+                this.highlightedCells = new Set();
+                this.data = this.generateDefaultData();
+                
+                this.initializeSpreadsheet();
+                this.setupEventListeners();
+                this.updateStatistics();
+            }
+            
+            generateDefaultData() {
+                const companies = [
+                    'Bank of San Francisco', 'LeverX', 'Teneo', 'Microsoft Corp', 'Google LLC', 
+                    'Amazon Inc', 'Apple Inc', 'Meta Platforms', 'Tesla Inc', 'Netflix Inc',
+                    'Adobe Systems', 'Salesforce Inc', 'Oracle Corp', 'Intel Corp', 'Cisco Systems',
+                    'IBM Corp', 'VMware Inc', 'ServiceNow Inc', 'Workday Inc', 'Zoom Video',
+                    'Shopify Inc', 'Square Inc', 'PayPal Holdings', 'Stripe Inc', 'Coinbase Global',
+                    'Uber Technologies', 'Lyft Inc', 'Airbnb Inc', 'DoorDash Inc', 'Instacart Inc'
+                ];
+                
+                const industries = [
+                    'Technology', 'Finance', 'Healthcare', 'Manufacturing', 'Retail',
+                    'Education', 'Real Estate', 'Transportation', 'Energy', 'Media',
+                    'Telecommunications', 'Automotive', 'Aerospace', 'Biotechnology', 'Consulting'
+                ];
+                
+                const locations = [
+                    'CA', 'NY', 'TX', 'FL', 'WA', 'IL', 'MA', 'VA', 'CO', 'OR',
+                    'NC', 'GA', 'AZ', 'MI', 'PA', 'OH', 'NJ', 'UT', 'NV', 'MD'
+                ];
+                
+                const data = [];
+                for (let i = 0; i < 1000; i++) {
+                    const companyBase = companies[Math.floor(Math.random() * companies.length)];
+                    const suffix = i > 29 ? ` ${Math.floor(i / 30) + 1}` : '';
+                    
+                    data.push([
+                        companyBase + suffix,
+                        industries[Math.floor(Math.random() * industries.length)],
+                        locations[Math.floor(Math.random() * locations.length)]
+                    ]);
+                }
+                return data;
+            }
+            
+            initializeSpreadsheet() {
+                const container = document.getElementById('spreadsheet-container');
+                
+                this.hot = new Handsontable(container, {
+                    data: this.data,
+                    colHeaders: ['Name', 'Industry', 'Location'],
+                    columns: [
+                        { type: 'text', width: 250 },
+                        { type: 'text', width: 150 },
+                        { type: 'text', width: 100 }
+                    ],
+                    rowHeaders: true,
+                    contextMenu: {
+                        items: {
+                            'row_above': { name: 'Insert row above' },
+                            'row_below': { name: 'Insert row below' },
+                            'remove_row': { name: 'Remove row' },
+                            'hsep1': '---------',
+                            'clear_column': { name: 'Clear column' }
+                        }
+                    },
+                    licenseKey: 'non-commercial-and-evaluation',
+                    height: 450,
+                    width: '100%',
+                    stretchH: 'all',
+                    autoWrapRow: true,
+                    autoWrapCol: true,
+                    manualRowResize: true,
+                    manualColumnResize: true,
+                    fixedColumnsLeft: 1,
+                    dropdownMenu: true,
+                    filters: true,
+                    columnSorting: true,
+                    afterChange: (changes, source) => {
+                        if (source !== 'loadData') {
+                            this.highlightKeywords();
+                            this.updateStatistics();
+                        }
+                    },
+                    afterCreateRow: () => {
+                        this.updateStatistics();
+                    },
+                    afterRemoveRow: () => {
+                        this.updateStatistics();
+                        this.highlightKeywords();
+                    }
+                });
+                
+                // Initial highlighting
+                this.highlightKeywords();
+            }
+            
+            setupEventListeners() {
+                const keywordInput = document.getElementById('keywordInput');
+                const csvFile = document.getElementById('csvFile');
+                
+                keywordInput.addEventListener('input', (e) => {
+                    this.updateKeywords(e.target.value);
+                    this.displayKeywordTags();
+                    this.highlightKeywords();
+                });
+                
+                csvFile.addEventListener('change', (e) => {
+                    this.handleFileUpload(e.target.files[0]);
+                });
+            }
+            
+            updateKeywords(input) {
+                this.keywords = input
+                    .split(',')
+                    .map(keyword => keyword.trim())
+                    .filter(keyword => keyword.length > 0);
+            }
+            
+            displayKeywordTags() {
+                const container = document.getElementById('keywordTags');
+                container.innerHTML = '';
+                
+                this.keywords.forEach(keyword => {
+                    const tag = document.createElement('span');
+                    tag.className = 'keyword-tag fade-in';
+                    tag.textContent = keyword;
+                    container.appendChild(tag);
+                });
+            }
+            
+            highlightKeywords() {
+                if (!this.hot) return;
+                
+                // Clear previous highlights
+                this.highlightedCells.clear();
+                this.hot.updateSettings({
+                    cells: (row, col) => {
+                        return {};
+                    }
+                });
+                
+                if (this.keywords.length === 0) {
+                    this.updateHighlightCount();
+                    return;
+                }
+                
+                // Apply new highlights
+                this.hot.updateSettings({
+                    cells: (row, col) => {
+                        if (col === 0) { // Only highlight Name column
+                            const cellValue = this.hot.getDataAtCell(row, col);
+                            if (cellValue && typeof cellValue === 'string') {
+                                const matches = this.keywords.some(keyword => 
+                                    cellValue.toLowerCase().includes(keyword.toLowerCase())
+                                );
+                                
+                                if (matches) {
+                                    this.highlightedCells.add(`${row}-${col}`);
+                                    return { className: 'highlighted-cell' };
+                                }
+                            }
+                        }
+                        return {};
+                    }
+                });
+                
+                this.hot.render();
+                this.updateHighlightCount();
+            }
+            
+            updateHighlightCount() {
+                const count = this.highlightedCells.size;
+                document.getElementById('highlightedCount').textContent = count;
+            }
+            
+            updateStatistics() {
+                if (this.hot) {
+                    const rowCount = this.hot.countRows();
+                    document.getElementById('totalRows').textContent = rowCount;
+                }
+            }
+            
+            handleFileUpload(file) {
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const csv = e.target.result;
+                        const lines = csv.split('\n').filter(line => line.trim());
+                        
+                        if (lines.length === 0) {
+                            alert('The CSV file appears to be empty.');
+                            return;
+                        }
+                        
+                        // Parse CSV
+                        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                        const data = lines.slice(1, 1001).map(line => {
+                            return line.split(',').map(cell => cell.trim().replace(/"/g, ''));
+                        });
+                        
+                        // Validate headers
+                        const expectedHeaders = ['Name', 'Industry', 'Location'];
+                        const hasValidHeaders = expectedHeaders.every(header => 
+                            headers.some(h => h.toLowerCase() === header.toLowerCase())
+                        );
+                        
+                        if (!hasValidHeaders) {
+                            alert('CSV must have headers: Name, Industry, Location');
+                            return;
+                        }
+                        
+                        // Update spreadsheet
+                        this.data = data;
+                        this.hot.loadData(data);
+                        this.highlightKeywords();
+                        this.updateStatistics();
+                        
+                        // Show success message
+                        this.showNotification(`Successfully imported ${data.length} rows from CSV`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Error parsing CSV:', error);
+                        alert('Error parsing CSV file. Please check the format.');
+                    }
+                };
+                
+                reader.readAsText(file);
+            }
+            
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 fade-in ${
+                    type === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+                }`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        }
+        
+        // Initialize the application when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SpreadsheetApp();
+        });
+    </script>
+</body>
 </html>
