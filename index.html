@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Spreadsheet with Keyword Highlighting</title>
+    <title>Excel-like Spreadsheet with Row Filtering</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,23 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.js"></script>
     
     <style>
-        .highlighted-cell {
-            background-color: #fef08a !important;
-            font-weight: bold;
-        }
-        
-        .keyword-tag {
-            background-color: #dbeafe;
-            color: #1e40af;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            margin: 2px;
-            display: inline-block;
-        }
-        
         #spreadsheet-container {
-            height: 500px;
+            height: 600px;
             width: 100%;
         }
         
@@ -42,14 +27,24 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        .keyword-tag {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 2px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">Advanced Data Explorer</h1>
-            <p class="text-gray-600">Search, edit, and analyze your data with real-time keyword highlighting</p>
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Excel-like Data Editor</h1>
+            <p class="text-gray-600">Paste your data and filter rows by keywords for easy editing</p>
         </div>
         
         <!-- Controls Section -->
@@ -58,15 +53,16 @@
                 <!-- Keyword Input -->
                 <div>
                     <label for="keywordInput" class="block text-sm font-medium text-gray-700 mb-2">
-                        Search Keywords
+                        Filter by Keywords
                     </label>
                     <input 
                         type="text" 
                         id="keywordInput" 
-                        placeholder="Enter keywords separated by commas (e.g., Bank of San Francisco, LeverX, Teneo)"
+                        placeholder="Enter keywords separated by commas to filter rows"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     >
                     <div id="keywordTags" class="mt-2 min-h-[24px]"></div>
+                    <p class="text-xs text-gray-500 mt-1">Leave empty to show all rows</p>
                 </div>
                 
                 <!-- CSV Import -->
@@ -80,7 +76,7 @@
                         accept=".csv"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all duration-200"
                     >
-                    <p class="text-xs text-gray-500 mt-1">Upload CSV with columns: Name, Industry, Location</p>
+                    <p class="text-xs text-gray-500 mt-1">Upload CSV file to populate the spreadsheet</p>
                 </div>
             </div>
             
@@ -88,7 +84,8 @@
             <div class="mt-4 pt-4 border-t border-gray-200">
                 <div class="flex flex-wrap gap-4 text-sm text-gray-600">
                     <span>Total Rows: <span id="totalRows" class="font-semibold text-blue-600">1000</span></span>
-                    <span>Highlighted Cells: <span id="highlightedCount" class="font-semibold text-yellow-600">0</span></span>
+                    <span>Visible Rows: <span id="visibleRows" class="font-semibold text-green-600">1000</span></span>
+                    <span>Filtered: <span id="isFiltered" class="font-semibold text-orange-600">No</span></span>
                 </div>
             </div>
         </div>
@@ -96,77 +93,62 @@
         <!-- Spreadsheet Container -->
         <div class="bg-white rounded-lg shadow-lg p-6">
             <div class="mb-4">
-                <h2 class="text-xl font-semibold text-gray-800 mb-2">Data Grid</h2>
-                <p class="text-sm text-gray-600">Right-click for context menu options. Double-click cells to edit.</p>
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">Data Grid (A-Z columns, 1000 rows)</h2>
+                <p class="text-sm text-gray-600">Right-click for context menu options. Paste data directly into cells. Use keyword filter to show specific rows.</p>
             </div>
             <div id="spreadsheet-container" class="border border-gray-200 rounded-lg overflow-hidden"></div>
         </div>
         
         <!-- Footer -->
         <div class="mt-8 text-center text-gray-500 text-sm">
-            <p>Built with Handsontable & Tailwind CSS • Real-time keyword highlighting</p>
+            <p>Built with Handsontable & Tailwind CSS • Excel-like functionality with row filtering</p>
         </div>
     </div>
 
+    <!-- Required Lovable script -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    
     <script>
-        class SpreadsheetApp {
+        class ExcelSpreadsheetApp {
             constructor() {
                 this.hot = null;
                 this.keywords = [];
-                this.highlightedCells = new Set();
-                this.data = this.generateDefaultData();
+                this.allData = this.generateEmptyData();
+                this.filteredData = [...this.allData];
+                this.isCurrentlyFiltered = false;
                 
                 this.initializeSpreadsheet();
                 this.setupEventListeners();
                 this.updateStatistics();
             }
             
-            generateDefaultData() {
-                const companies = [
-                    'Bank of San Francisco', 'LeverX', 'Teneo', 'Microsoft Corp', 'Google LLC', 
-                    'Amazon Inc', 'Apple Inc', 'Meta Platforms', 'Tesla Inc', 'Netflix Inc',
-                    'Adobe Systems', 'Salesforce Inc', 'Oracle Corp', 'Intel Corp', 'Cisco Systems',
-                    'IBM Corp', 'VMware Inc', 'ServiceNow Inc', 'Workday Inc', 'Zoom Video',
-                    'Shopify Inc', 'Square Inc', 'PayPal Holdings', 'Stripe Inc', 'Coinbase Global',
-                    'Uber Technologies', 'Lyft Inc', 'Airbnb Inc', 'DoorDash Inc', 'Instacart Inc'
-                ];
-                
-                const industries = [
-                    'Technology', 'Finance', 'Healthcare', 'Manufacturing', 'Retail',
-                    'Education', 'Real Estate', 'Transportation', 'Energy', 'Media',
-                    'Telecommunications', 'Automotive', 'Aerospace', 'Biotechnology', 'Consulting'
-                ];
-                
-                const locations = [
-                    'CA', 'NY', 'TX', 'FL', 'WA', 'IL', 'MA', 'VA', 'CO', 'OR',
-                    'NC', 'GA', 'AZ', 'MI', 'PA', 'OH', 'NJ', 'UT', 'NV', 'MD'
-                ];
-                
+            generateEmptyData() {
+                // Create 1000 empty rows with 26 columns (A-Z)
                 const data = [];
                 for (let i = 0; i < 1000; i++) {
-                    const companyBase = companies[Math.floor(Math.random() * companies.length)];
-                    const suffix = i > 29 ? ` ${Math.floor(i / 30) + 1}` : '';
-                    
-                    data.push([
-                        companyBase + suffix,
-                        industries[Math.floor(Math.random() * industries.length)],
-                        locations[Math.floor(Math.random() * locations.length)]
-                    ]);
+                    const row = new Array(26).fill('');
+                    data.push(row);
                 }
                 return data;
             }
             
+            generateColumnHeaders() {
+                // Generate A-Z column headers
+                const headers = [];
+                for (let i = 0; i < 26; i++) {
+                    headers.push(String.fromCharCode(65 + i)); // A, B, C, ..., Z
+                }
+                return headers;
+            }
+            
             initializeSpreadsheet() {
                 const container = document.getElementById('spreadsheet-container');
+                const headers = this.generateColumnHeaders();
                 
                 this.hot = new Handsontable(container, {
-                    data: this.data,
-                    colHeaders: ['Name', 'Industry', 'Location'],
-                    columns: [
-                        { type: 'text', width: 250 },
-                        { type: 'text', width: 150 },
-                        { type: 'text', width: 100 }
-                    ],
+                    data: this.filteredData,
+                    colHeaders: headers,
+                    columns: Array(26).fill(null).map(() => ({ type: 'text', width: 100 })),
                     rowHeaders: true,
                     contextMenu: {
                         items: {
@@ -174,38 +156,90 @@
                             'row_below': { name: 'Insert row below' },
                             'remove_row': { name: 'Remove row' },
                             'hsep1': '---------',
-                            'clear_column': { name: 'Clear column' }
+                            'clear_column': { name: 'Clear column' },
+                            'clear_selection': { name: 'Clear selection' }
                         }
                     },
                     licenseKey: 'non-commercial-and-evaluation',
-                    height: 450,
+                    height: 550,
                     width: '100%',
                     stretchH: 'all',
                     autoWrapRow: true,
                     autoWrapCol: true,
                     manualRowResize: true,
                     manualColumnResize: true,
-                    fixedColumnsLeft: 1,
-                    dropdownMenu: true,
-                    filters: true,
-                    columnSorting: true,
+                    dropdownMenu: false,
+                    filters: false,
+                    columnSorting: false,
                     afterChange: (changes, source) => {
-                        if (source !== 'loadData') {
-                            this.highlightKeywords();
+                        if (source !== 'loadData' && changes) {
+                            this.syncChangesToAllData(changes);
                             this.updateStatistics();
                         }
                     },
-                    afterCreateRow: () => {
-                        this.updateStatistics();
+                    afterCreateRow: (index, amount) => {
+                        this.handleRowInsertion(index, amount);
                     },
-                    afterRemoveRow: () => {
-                        this.updateStatistics();
-                        this.highlightKeywords();
+                    afterRemoveRow: (index, amount) => {
+                        this.handleRowRemoval(index, amount);
                     }
                 });
-                
-                // Initial highlighting
-                this.highlightKeywords();
+            }
+            
+            syncChangesToAllData(changes) {
+                // Sync changes from filtered view back to the complete dataset
+                changes.forEach(([row, col, oldValue, newValue]) => {
+                    if (this.isCurrentlyFiltered) {
+                        // Find the actual row index in allData
+                        const actualRowIndex = this.getActualRowIndex(row);
+                        if (actualRowIndex !== -1) {
+                            this.allData[actualRowIndex][col] = newValue;
+                        }
+                    } else {
+                        // Direct mapping when not filtered
+                        if (this.allData[row]) {
+                            this.allData[row][col] = newValue;
+                        }
+                    }
+                });
+            }
+            
+            getActualRowIndex(filteredRowIndex) {
+                // Find the corresponding row index in allData for a filtered row
+                const filteredRow = this.filteredData[filteredRowIndex];
+                return this.allData.findIndex(row => 
+                    JSON.stringify(row) === JSON.stringify(filteredRow)
+                );
+            }
+            
+            handleRowInsertion(index, amount) {
+                // Add empty rows to allData
+                for (let i = 0; i < amount; i++) {
+                    const newRow = new Array(26).fill('');
+                    if (this.isCurrentlyFiltered) {
+                        const actualIndex = this.getActualRowIndex(index) + i;
+                        this.allData.splice(actualIndex, 0, newRow);
+                    } else {
+                        this.allData.splice(index + i, 0, newRow);
+                    }
+                }
+                this.updateStatistics();
+            }
+            
+            handleRowRemoval(index, amount) {
+                // Remove rows from allData
+                if (this.isCurrentlyFiltered) {
+                    for (let i = amount - 1; i >= 0; i--) {
+                        const actualIndex = this.getActualRowIndex(index + i);
+                        if (actualIndex !== -1) {
+                            this.allData.splice(actualIndex, 1);
+                        }
+                    }
+                } else {
+                    this.allData.splice(index, amount);
+                }
+                this.applyFilter();
+                this.updateStatistics();
             }
             
             setupEventListeners() {
@@ -215,7 +249,7 @@
                 keywordInput.addEventListener('input', (e) => {
                     this.updateKeywords(e.target.value);
                     this.displayKeywordTags();
-                    this.highlightKeywords();
+                    this.applyFilter();
                 });
                 
                 csvFile.addEventListener('change', (e) => {
@@ -242,56 +276,38 @@
                 });
             }
             
-            highlightKeywords() {
-                if (!this.hot) return;
-                
-                // Clear previous highlights
-                this.highlightedCells.clear();
-                this.hot.updateSettings({
-                    cells: (row, col) => {
-                        return {};
-                    }
-                });
-                
+            applyFilter() {
                 if (this.keywords.length === 0) {
-                    this.updateHighlightCount();
-                    return;
+                    // Show all data when no keywords
+                    this.filteredData = [...this.allData];
+                    this.isCurrentlyFiltered = false;
+                } else {
+                    // Filter rows that contain any of the keywords in any column
+                    this.filteredData = this.allData.filter(row => {
+                        return this.keywords.some(keyword => {
+                            return row.some(cell => {
+                                if (cell && typeof cell === 'string') {
+                                    return cell.toLowerCase().includes(keyword.toLowerCase());
+                                }
+                                return false;
+                            });
+                        });
+                    });
+                    this.isCurrentlyFiltered = true;
                 }
                 
-                // Apply new highlights
-                this.hot.updateSettings({
-                    cells: (row, col) => {
-                        if (col === 0) { // Only highlight Name column
-                            const cellValue = this.hot.getDataAtCell(row, col);
-                            if (cellValue && typeof cellValue === 'string') {
-                                const matches = this.keywords.some(keyword => 
-                                    cellValue.toLowerCase().includes(keyword.toLowerCase())
-                                );
-                                
-                                if (matches) {
-                                    this.highlightedCells.add(`${row}-${col}`);
-                                    return { className: 'highlighted-cell' };
-                                }
-                            }
-                        }
-                        return {};
-                    }
-                });
-                
-                this.hot.render();
-                this.updateHighlightCount();
-            }
-            
-            updateHighlightCount() {
-                const count = this.highlightedCells.size;
-                document.getElementById('highlightedCount').textContent = count;
+                // Update the spreadsheet with filtered data
+                this.hot.loadData(this.filteredData);
+                this.updateStatistics();
             }
             
             updateStatistics() {
-                if (this.hot) {
-                    const rowCount = this.hot.countRows();
-                    document.getElementById('totalRows').textContent = rowCount;
-                }
+                const totalRows = this.allData.filter(row => row.some(cell => cell && cell.toString().trim() !== '')).length;
+                const visibleRows = this.filteredData.filter(row => row.some(cell => cell && cell.toString().trim() !== '')).length;
+                
+                document.getElementById('totalRows').textContent = totalRows;
+                document.getElementById('visibleRows').textContent = visibleRows;
+                document.getElementById('isFiltered').textContent = this.isCurrentlyFiltered ? 'Yes' : 'No';
             }
             
             handleFileUpload(file) {
@@ -308,31 +324,30 @@
                             return;
                         }
                         
-                        // Parse CSV
-                        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-                        const data = lines.slice(1, 1001).map(line => {
-                            return line.split(',').map(cell => cell.trim().replace(/"/g, ''));
+                        // Parse CSV data
+                        const parsedData = lines.map(line => {
+                            const cells = line.split(',').map(cell => cell.trim().replace(/"/g, ''));
+                            // Ensure each row has exactly 26 columns
+                            while (cells.length < 26) {
+                                cells.push('');
+                            }
+                            return cells.slice(0, 26); // Take only first 26 columns
                         });
                         
-                        // Validate headers
-                        const expectedHeaders = ['Name', 'Industry', 'Location'];
-                        const hasValidHeaders = expectedHeaders.every(header => 
-                            headers.some(h => h.toLowerCase() === header.toLowerCase())
-                        );
-                        
-                        if (!hasValidHeaders) {
-                            alert('CSV must have headers: Name, Industry, Location');
-                            return;
+                        // Pad with empty rows to reach 1000 rows
+                        while (parsedData.length < 1000) {
+                            parsedData.push(new Array(26).fill(''));
                         }
                         
-                        // Update spreadsheet
-                        this.data = data;
-                        this.hot.loadData(data);
-                        this.highlightKeywords();
-                        this.updateStatistics();
+                        // Update data
+                        this.allData = parsedData.slice(0, 1000); // Limit to 1000 rows
+                        this.applyFilter(); // This will also update the display
                         
                         // Show success message
-                        this.showNotification(`Successfully imported ${data.length} rows from CSV`, 'success');
+                        this.showNotification(`Successfully imported ${lines.length} rows from CSV`, 'success');
+                        
+                        // Clear the file input
+                        document.getElementById('csvFile').value = '';
                         
                     } catch (error) {
                         console.error('Error parsing CSV:', error);
@@ -360,7 +375,7 @@
         
         // Initialize the application when the page loads
         document.addEventListener('DOMContentLoaded', () => {
-            new SpreadsheetApp();
+            new ExcelSpreadsheetApp();
         });
     </script>
 </body>
