@@ -57,7 +57,7 @@
                     <input 
                         type="text" 
                         id="keywordInput" 
-                        placeholder="Enter keywords separated by tildes to filter rows"
+                        placeholder="Enter keywords separated by dashes to filter rows"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     >
                     <div id="keywordTags" class="mt-2 min-h-[24px]"></div>
@@ -258,7 +258,7 @@
             
             updateKeywords(input) {
                 this.keywords = input
-                    .split('~')
+                    .split('-')
                     .map(keyword => keyword.trim())
                     .filter(keyword => keyword.length > 0);
             }
@@ -281,20 +281,12 @@
                     this.filteredData = [...this.allData];
                     this.isCurrentlyFiltered = false;
                 } else {
-                    // Filter rows that contain any of the keywords as complete words in any column
+                    // Filter rows that contain any of the keywords in any column
                     this.filteredData = this.allData.filter(row => {
                         return this.keywords.some(keyword => {
                             return row.some(cell => {
                                 if (cell && typeof cell === 'string') {
-                                    // Convert both cell content and keyword to lowercase for case-insensitive matching
-                                    const cellText = cell.toLowerCase();
-                                    const searchKeyword = keyword.toLowerCase();
-                                    
-                                    // Split cell content into words using common delimiters
-                                    const words = cellText.split(/[\s,.-_]+/).filter(word => word.length > 0);
-                                    
-                                    // Check if any word exactly matches the keyword
-                                    return words.includes(searchKeyword);
+                                    return cell.toLowerCase().includes(keyword.toLowerCase());
                                 }
                                 return false;
                             });
