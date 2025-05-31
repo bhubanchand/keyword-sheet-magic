@@ -281,7 +281,7 @@
                     this.filteredData = [...this.allData];
                     this.isCurrentlyFiltered = false;
                 } else {
-                    // Filter rows that contain any of the complete keyword phrases in any column
+                    // Filter rows that contain any of the keywords as complete words in any column
                     this.filteredData = this.allData.filter(row => {
                         return this.keywords.some(keyword => {
                             return row.some(cell => {
@@ -290,8 +290,11 @@
                                     const cellText = cell.toLowerCase();
                                     const searchKeyword = keyword.toLowerCase();
                                     
-                                    // Check if the cell contains the complete keyword phrase
-                                    return cellText.includes(searchKeyword);
+                                    // Split cell content into words using common delimiters
+                                    const words = cellText.split(/[\s,.-_]+/).filter(word => word.length > 0);
+                                    
+                                    // Check if any word exactly matches the keyword
+                                    return words.includes(searchKeyword);
                                 }
                                 return false;
                             });
