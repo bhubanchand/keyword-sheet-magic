@@ -281,12 +281,20 @@
                     this.filteredData = [...this.allData];
                     this.isCurrentlyFiltered = false;
                 } else {
-                    // Filter rows that contain any of the keywords in any column
+                    // Filter rows that contain any of the keywords as complete words in any column
                     this.filteredData = this.allData.filter(row => {
                         return this.keywords.some(keyword => {
                             return row.some(cell => {
                                 if (cell && typeof cell === 'string') {
-                                    return cell.toLowerCase().includes(keyword.toLowerCase());
+                                    // Convert both cell content and keyword to lowercase for case-insensitive matching
+                                    const cellText = cell.toLowerCase();
+                                    const searchKeyword = keyword.toLowerCase();
+                                    
+                                    // Split cell content into words using common delimiters
+                                    const words = cellText.split(/[\s,.-_]+/).filter(word => word.length > 0);
+                                    
+                                    // Check if any word exactly matches the keyword
+                                    return words.includes(searchKeyword);
                                 }
                                 return false;
                             });
