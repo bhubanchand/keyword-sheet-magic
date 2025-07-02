@@ -57,7 +57,7 @@
                     <input 
                         type="text" 
                         id="keywordInput" 
-                        placeholder="Enter keywords separated by dashes to filter rows"
+                        placeholder="Enter keywords separated by double dashes to filter rows"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     >
                     <div id="keywordTags" class="mt-2 min-h-[24px]"></div>
@@ -258,7 +258,7 @@
             
             updateKeywords(input) {
                 this.keywords = input
-                    .split('-')
+                    .split('--')
                     .map(keyword => keyword.trim())
                     .filter(keyword => keyword.length > 0);
             }
